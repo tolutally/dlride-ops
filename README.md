@@ -148,8 +148,9 @@ domain `ops.dlride.com` to that service. Railway supplies `PORT`; do not add it
 as a service variable. The service health check is `GET /health`.
 
 If the applications API is deployed as a separate Railway service, set that
-service's config-file path to `/railway.api.json`. The mail-sync cron continues
-to use `/railway.mail-sync.json`.
+service variable `SERVICE_IMAGE=api`; the shared root Dockerfile will then select
+the private Deno API image instead of the default Ops image. The mail-sync cron
+continues to use `/railway.mail-sync.json`.
 
 The public entry point `/` redirects to `/login`. Authenticated staff who visit
 `/login` are redirected to `/applications`, and a successful sign-in also lands
