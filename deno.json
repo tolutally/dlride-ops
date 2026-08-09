@@ -1,4 +1,7 @@
 {
+  "imports": {
+    "server-only": "./scripts/server-only.ts"
+  },
   "compilerOptions": {
     "lib": [
       "deno.window"
@@ -12,9 +15,9 @@
     }
   },
   "tasks": {
-    "lint": "deno lint supabase/functions/applications",
-    "typecheck": "deno check supabase/functions/applications/index.ts supabase/functions/applications/handler.test.ts",
-    "test": "deno test supabase/functions/applications/handler.test.ts",
-    "build": "deno check --all supabase/functions/applications/index.ts"
+    "lint": "deno lint supabase/functions",
+    "typecheck": "deno check --sloppy-imports lib/zoho-mail/zoho-mail.test.ts lib/zoho-mail/inbound-sync.test.ts scripts/sync-zoho-mail.ts scripts/test-mailtrap.ts scripts/test-zoho-mail.ts supabase/functions/applications/index.ts supabase/functions/applications/handler.test.ts supabase/functions/_shared/application-email.test.ts supabase/functions/_shared/workflow/index.ts supabase/functions/_shared/workflow/workflow.test.ts",
+    "test": "deno test --sloppy-imports lib/zoho-mail/zoho-mail.test.ts lib/zoho-mail/inbound-sync.test.ts supabase/functions/applications/handler.test.ts supabase/functions/_shared/application-email.test.ts supabase/functions/_shared/workflow/workflow.test.ts",
+    "build": "deno check --all --sloppy-imports scripts/sync-zoho-mail.ts supabase/functions/applications/index.ts supabase/functions/_shared/workflow/index.ts"
   }
 }

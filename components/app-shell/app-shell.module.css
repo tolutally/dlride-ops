@@ -1,0 +1,66 @@
+.shell { min-height: 100dvh; background: var(--color-canvas); }
+
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 3.75rem;
+  /* viewport-fit=cover lets this bar span the status bar and notch, so its own
+     padding keeps the contents clear while the background still reaches the edge. */
+  padding-block: calc(var(--space-2) + env(safe-area-inset-top)) var(--space-2);
+  padding-inline: calc(var(--space-6) + env(safe-area-inset-left)) calc(var(--space-6) + env(safe-area-inset-right));
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  display: block;
+  width: 5.5rem;
+  text-decoration: none;
+}
+
+.brandLogo {
+  display: block;
+  width: 100%;
+  height: auto;
+  mix-blend-mode: multiply;
+}
+
+.account { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.accountCopy { display: grid; min-width: 0; margin-right: var(--space-1); }
+.email {
+  max-width: 15rem;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--text-caption);
+  font-weight: 590;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.role { color: var(--color-text-muted); font-size: 0.6875rem; }
+.signOut { min-height: 2.25rem; }
+.content {
+  min-width: 0;
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+}
+
+@media (max-width: 720px) {
+  .topBar {
+    min-height: 3.5rem;
+    padding-inline: calc(var(--space-4) + env(safe-area-inset-left)) calc(var(--space-4) + env(safe-area-inset-right));
+  }
+  .brand { width: 4.75rem; }
+  .accountCopy { display: none; }
+  .signOut { min-height: 2.75rem; padding-inline: var(--space-3); }
+  .avatar { display: none; }
+}
+
+@media (max-width: 440px) {
+  .signOut { width: 2.75rem; padding: 0; }
+  .signOut span { display: none; }
+}

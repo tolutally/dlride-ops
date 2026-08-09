@@ -29,8 +29,13 @@ the OpenAPI contract are planned and are not live. See the repository root
 - All JSON success responses use `{ "success": true, "data": ... }`.
 - All JSON failures use `{ "success": false, "error": { "code", "message" } }`.
 - Validation failures may add `error.details` with field-specific messages.
-- `POST /applications` is public and accepts `multipart/form-data` with an
-  empty `company_name` honeypot and a `cf-turnstile-response` token.
+- `POST /applications` is private and requires the server-only
+  `Authorization: Bearer <INTERNAL_API_TOKEN>` credential. Browser clients must
+  submit through a trusted server-side handler.
+- The private endpoint accepts `multipart/form-data` with an empty
+  `company_name` honeypot and a `cf-turnstile-response` token.
+- New submissions require `pickup_time` and `dropoff_time` in 24-hour `HH:MM`
+  format; both are interpreted as local times for their corresponding rental dates.
 - The public form's Turnstile widget must use site key
   `0x4AAAAAAEKp8XOfnJ4A6Dwp` and `data-action="turnstile-spin-v2"`.
 - Siteverify runs only in the server function with `TURNSTILE_SECRET`; the
@@ -53,7 +58,7 @@ the OpenAPI contract are planned and are not live. See the repository root
 | `200` | Successful read or update |
 | `201` | Application created |
 | `400` | Malformed request or invalid query/path parameter |
-| `401` | Staff authentication required |
+| `401` | Internal service or staff authentication required |
 | `403` | Authenticated caller is not authorized as staff |
 | `404` | Application or required document not found |
 | `413` | Upload exceeds the configured server limit |

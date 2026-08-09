@@ -1,6 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.2";
 
 import {
+  buildApplicationReceivedEmail,
+  type MailtrapConfiguration,
+  sendMailtrapTemplateEmail,
+} from "../_shared/application-email.ts";
+import {
   type ApplicationInsert,
   type ApplicationResult,
   createApplicationHandler,
@@ -16,16 +21,39 @@ function requiredEnvironment(name: string) {
 }
 
 const supabaseUrl = requiredEnvironment("SUPABASE_URL");
-const supabaseSecretKey =
-  Deno.env.get("SUPABASE_SECRET_KEY") ||
+const supabaseSecretKey = Deno.env.get("SUPABASE_SECRET_KEY") ||
   requiredEnvironment("SUPABASE_SERVICE_ROLE_KEY");
 const turnstileSecret = requiredEnvironment("TURNSTILE_SECRET");
+const internalApiToken = requiredEnvironment("INTERNAL_API_TOKEN");
+
+function mailtrapConfiguration(): MailtrapConfiguration {
+  return {
+    apiToken: Deno.env.get("MAILTRAP_API_TOKEN") ?? "",
+    fromEmail: Deno.env.get("MAILTRAP_FROM_EMAIL") ?? "",
+    fromName: Deno.env.get("MAILTRAP_FROM_NAME") ?? "",
+    replyToEmail: Deno.env.get("MAILTRAP_REPLY_TO_EMAIL") ?? undefined,
+    replyToName: Deno.env.get("MAILTRAP_REPLY_TO_NAME") ?? undefined,
+    templates: {
+      applicationReceived:
+        Deno.env.get("MAILTRAP_TEMPLATE_APPLICATION_RECEIVED") ?? "",
+      applicationApproved:
+        Deno.env.get("MAILTRAP_TEMPLATE_APPLICATION_APPROVED") ?? "",
+      moreInformationRequired:
+        Deno.env.get("MAILTRAP_TEMPLATE_MORE_INFORMATION_REQUIRED") ?? "",
+      applicationDenied: Deno.env.get("MAILTRAP_TEMPLATE_APPLICATION_DENIED") ??
+        "",
+      applicationCancelled:
+        Deno.env.get("MAILTRAP_TEMPLATE_APPLICATION_CANCELLED") ?? "",
+    },
+  };
+}
 
 const supabase = createClient(supabaseUrl, supabaseSecretKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
 const handler = createApplicationHandler({
+  internalApiToken,
   now: () => new Date(),
   generateId: () => crypto.randomUUID(),
 
@@ -70,6 +98,14 @@ const handler = createApplicationHandler({
 
     if (error || !data) throw new Error("Application insert failed");
     return data as ApplicationResult;
+  },
+
+  async sendApplicationReceivedEmail(application) {
+    const configuration = mailtrapConfiguration();
+    await sendMailtrapTemplateEmail(
+      buildApplicationReceivedEmail(application, configuration.templates),
+      configuration,
+    );
   },
 
   logServerError(event, requestId) {

@@ -1,0 +1,14 @@
+FROM denoland/deno:2.9.5
+
+WORKDIR /app
+
+COPY --chown=deno:deno package.json package-lock.json deno.json ./
+COPY --chown=deno:deno lib/zoho-mail ./lib/zoho-mail
+COPY --chown=deno:deno scripts/server-only.ts scripts/sync-zoho-mail.ts ./scripts/
+
+RUN deno install --no-save --node-modules-dir=auto npm:@supabase/supabase-js@2.112.2 \
+  && deno cache --node-modules-dir=auto --sloppy-imports scripts/sync-zoho-mail.ts
+
+USER deno
+
+CMD ["run", "--sloppy-imports", "--allow-env", "--allow-net", "scripts/sync-zoho-mail.ts"]

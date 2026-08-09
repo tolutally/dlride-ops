@@ -7,15 +7,24 @@ import {
 const APPLICATION_ID = "550e8400-e29b-41d4-a716-446655440000";
 const CREATED_AT = "2026-01-01T12:00:00.000Z";
 
-function assert(condition: unknown, message = "Assertion failed"): asserts condition {
+function assert(
+  condition: unknown,
+  message = "Assertion failed",
+): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-function assertEquals(actual: unknown, expected: unknown, message = "Values differ") {
+function assertEquals(
+  actual: unknown,
+  expected: unknown,
+  message = "Values differ",
+) {
   const actualJson = JSON.stringify(actual);
   const expectedJson = JSON.stringify(expected);
   if (actualJson !== expectedJson) {
-    throw new Error(`${message}: expected ${expectedJson}, received ${actualJson}`);
+    throw new Error(
+      `${message}: expected ${expectedJson}, received ${actualJson}`,
+    );
   }
 }
 
@@ -37,6 +46,8 @@ function createForm() {
   form.set("postal_code", "T2P 1J9");
   form.set("rental_start_date", "2026-02-01");
   form.set("rental_end_date", "2026-02-15");
+  form.set("pickup_time", "09:30");
+  form.set("dropoff_time", "17:00");
   form.set("intended_vehicle_use", "gig_work");
   form.set("payment_method", "card");
   form.set("additional_information", "Evening pickup preferred.");
@@ -51,7 +62,10 @@ function createForm() {
 function createRequest(form: FormData) {
   return new Request("https://api.example.test/applications", {
     method: "POST",
-    headers: { "cf-connecting-ip": "203.0.113.10" },
+    headers: {
+      "authorization": "Bearer test-internal-token",
+      "cf-connecting-ip": "203.0.113.10",
+    },
     body: form,
   });
 }
@@ -60,6 +74,11 @@ type TestState = {
   uploads: string[];
   removed: string[];
   inserted: ApplicationInsert | null;
+  receivedEmails: Array<{
+    first_name: string;
+    application_number: string;
+    email: string;
+  }>;
   verifyCalls: number;
   errors: string[];
 };
@@ -71,14 +90,17 @@ function createHarness(
     uploads: [],
     removed: [],
     inserted: null,
+    receivedEmails: [],
     verifyCalls: 0,
     errors: [],
   };
 
   const dependencies: ApplicationSubmissionDependencies = {
+    internalApiToken: "test-internal-token",
     now: () => new Date("2026-01-01T12:00:00.000Z"),
     generateId: () => APPLICATION_ID,
-    consumeRateLimit: () => Promise.resolve({ allowed: true, retryAfterSeconds: 0 }),
+    consumeRateLimit: () =>
+      Promise.resolve({ allowed: true, retryAfterSeconds: 0 }),
     verifyTurnstile: () => {
       state.verifyCalls += 1;
       return Promise.resolve(true);
@@ -96,10 +118,14 @@ function createHarness(
       return Promise.resolve({
         id: application.id,
         application_number: "DLR-000001",
-        status: "submitted",
+        status: "under_review",
         rental_weeks: application.rental_weeks,
         created_at: CREATED_AT,
       });
+    },
+    sendApplicationReceivedEmail: (application) => {
+      state.receivedEmails.push(application);
+      return Promise.resolve();
     },
     logServerError: (event) => {
       state.errors.push(event);
@@ -110,11 +136,33 @@ function createHarness(
   return { handler: createApplicationHandler(dependencies), state };
 }
 
+Deno.test("application API rejects requests without the internal bearer token", async () => {
+  const { handler, state } = createHarness();
+  const response = await handler(
+    new Request("https://api.example.test/applications", {
+      method: "POST",
+      headers: { "cf-connecting-ip": "203.0.113.10" },
+      body: createForm(),
+    }),
+  );
+  const body = await responseBody(response);
+
+  assertEquals(response.status, 401);
+  assertEquals(response.headers.get("www-authenticate"), "Bearer");
+  assertEquals(body.error?.code, "UNAUTHORIZED");
+  assertEquals(state.uploads, []);
+  assertEquals(state.verifyCalls, 0);
+});
+
 async function responseBody(response: Response) {
   return await response.json() as {
     success: boolean;
     data?: Record<string, unknown>;
-    error?: { code: string; message: string; details?: Array<{ field: string }> };
+    error?: {
+      code: string;
+      message: string;
+      details?: Array<{ field: string }>;
+    };
   };
 }
 
@@ -129,7 +177,7 @@ Deno.test("valid application uploads documents and creates a complete record", a
     data: {
       id: APPLICATION_ID,
       application_number: "DLR-000001",
-      status: "submitted",
+      status: "under_review",
       rental_weeks: 2,
       created_at: CREATED_AT,
     },
@@ -141,6 +189,27 @@ Deno.test("valid application uploads documents and creates a complete record", a
   assert(state.inserted !== null);
   assertEquals(state.inserted.drivers_license_path, state.uploads[0]);
   assertEquals(state.inserted.proof_of_address_path, state.uploads[1]);
+  assertEquals(state.inserted.pickup_time, "09:30");
+  assertEquals(state.inserted.dropoff_time, "17:00");
+  assertEquals(state.receivedEmails, [{
+    first_name: "Taylor",
+    application_number: "DLR-000001",
+    email: "taylor@example.com",
+  }]);
+});
+
+Deno.test("application creation succeeds when the received email fails", async () => {
+  const { handler, state } = createHarness({
+    sendApplicationReceivedEmail: () =>
+      Promise.reject(new Error("simulated failure")),
+  });
+
+  const response = await handler(createRequest(createForm()));
+  const body = await responseBody(response);
+
+  assertEquals(response.status, 201);
+  assertEquals(body.data?.application_number, "DLR-000001");
+  assertEquals(state.errors, ["application_received_email_failed"]);
 });
 
 Deno.test("missing required field is rejected", async () => {
@@ -153,6 +222,33 @@ Deno.test("missing required field is rejected", async () => {
   assertEquals(response.status, 422);
   assertEquals(body.error?.code, "VALIDATION_ERROR");
   assertEquals(body.error?.details?.[0]?.field, "first_name");
+  assertEquals(state.uploads, []);
+});
+
+Deno.test("missing pickup time is rejected", async () => {
+  const form = createForm();
+  form.delete("pickup_time");
+  const { handler, state } = createHarness();
+  const response = await handler(createRequest(form));
+  const body = await responseBody(response);
+
+  assertEquals(response.status, 422);
+  assertEquals(body.error?.message, "Pickup time is required.");
+  assertEquals(state.uploads, []);
+});
+
+Deno.test("invalid drop-off time is rejected", async () => {
+  const form = createForm();
+  form.set("dropoff_time", "25:15");
+  const { handler, state } = createHarness();
+  const response = await handler(createRequest(form));
+  const body = await responseBody(response);
+
+  assertEquals(response.status, 422);
+  assertEquals(
+    body.error?.message,
+    "Drop-off time must use 24-hour HH:MM format.",
+  );
   assertEquals(state.uploads, []);
 });
 
@@ -176,7 +272,10 @@ Deno.test("rental end before start is rejected", async () => {
   const body = await responseBody(response);
 
   assertEquals(response.status, 422);
-  assertEquals(body.error?.message, "Rental end date must be after rental start date.");
+  assertEquals(
+    body.error?.message,
+    "Rental end date must be after rental start date.",
+  );
 });
 
 Deno.test("rental shorter than seven days is rejected", async () => {

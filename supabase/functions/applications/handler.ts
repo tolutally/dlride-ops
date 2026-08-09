@@ -1,11 +1,5 @@
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
 export type ApiErrorDetail = {
   field: string;
   message: string;
@@ -29,6 +23,8 @@ export type ApplicationInsert = {
   email: string;
   rental_start_date: string;
   rental_end_date: string;
+  pickup_time: string;
+  dropoff_time: string;
   rental_weeks: number;
   intended_vehicle_use: string;
   payment_method: string;
@@ -41,12 +37,13 @@ export type ApplicationInsert = {
 export type ApplicationResult = {
   id: string;
   application_number: string;
-  status: "submitted";
+  status: "under_review";
   rental_weeks: number;
   created_at: string;
 };
 
 export type ApplicationSubmissionDependencies = {
+  internalApiToken: string;
   now: () => Date;
   generateId: () => string;
   consumeRateLimit: (
@@ -59,7 +56,14 @@ export type ApplicationSubmissionDependencies = {
     contentType: ValidatedDocument["mimeType"],
   ) => Promise<void>;
   removeDocuments: (paths: string[]) => Promise<void>;
-  createApplication: (application: ApplicationInsert) => Promise<ApplicationResult>;
+  createApplication: (
+    application: ApplicationInsert,
+  ) => Promise<ApplicationResult>;
+  sendApplicationReceivedEmail: (application: {
+    first_name: string;
+    application_number: string;
+    email: string;
+  }) => Promise<void>;
   logServerError: (event: string, requestId: string) => void;
 };
 
@@ -72,11 +76,14 @@ type ErrorBody = {
   };
 };
 
-function jsonResponse(body: unknown, status: number, headers?: Record<string, string>) {
+function jsonResponse(
+  body: unknown,
+  status: number,
+  headers?: Record<string, string>,
+) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...corsHeaders,
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
       ...headers,
@@ -118,8 +125,9 @@ function getClientIp(request: Request) {
 async function sha256(value: string) {
   const data = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")
+  return Array.from(
+    new Uint8Array(digest),
+    (byte) => byte.toString(16).padStart(2, "0"),
   ).join("");
 }
 
@@ -135,6 +143,10 @@ function parseIsoDate(value: string) {
   ) return null;
 
   return date;
+}
+
+function isValidTime(value: string) {
+  return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 function utcDay(date: Date) {
@@ -195,7 +207,10 @@ async function cleanupDocuments(
   try {
     await dependencies.removeDocuments(paths);
   } catch {
-    dependencies.logServerError("application_document_cleanup_failed", requestId);
+    dependencies.logServerError(
+      "application_document_cleanup_failed",
+      requestId,
+    );
   }
 }
 
@@ -204,16 +219,36 @@ export function createApplicationHandler(
 ) {
   return async (request: Request): Promise<Response> => {
     const requestId = crypto.randomUUID();
+    const authorization = request.headers.get("authorization");
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders });
+    if (authorization !== `Bearer ${dependencies.internalApiToken}`) {
+      return errorResponse(
+        401,
+        "UNAUTHORIZED",
+        "Authentication is required.",
+        undefined,
+        {
+          "WWW-Authenticate": "Bearer",
+        },
+      );
     }
+
     if (request.method !== "POST") {
-      return errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed.", undefined, {
-        Allow: "POST, OPTIONS",
-      });
+      return errorResponse(
+        405,
+        "METHOD_NOT_ALLOWED",
+        "Method not allowed.",
+        undefined,
+        {
+          Allow: "POST",
+        },
+      );
     }
-    if (!(request.headers.get("content-type") || "").toLowerCase().startsWith("multipart/form-data")) {
+    if (
+      !(request.headers.get("content-type") || "").toLowerCase().startsWith(
+        "multipart/form-data",
+      )
+    ) {
       return errorResponse(
         415,
         "UNSUPPORTED_MEDIA_TYPE",
@@ -223,18 +258,28 @@ export function createApplicationHandler(
 
     const clientIp = getClientIp(request);
     if (!clientIp) {
-      return errorResponse(400, "BAD_REQUEST", "The request source could not be verified.");
+      return errorResponse(
+        400,
+        "BAD_REQUEST",
+        "The request source could not be verified.",
+      );
     }
 
     let form: FormData;
     try {
       form = await request.formData();
     } catch {
-      return errorResponse(400, "BAD_REQUEST", "The request could not be parsed.");
+      return errorResponse(
+        400,
+        "BAD_REQUEST",
+        "The request could not be parsed.",
+      );
     }
 
     try {
-      const rateLimit = await dependencies.consumeRateLimit(await sha256(clientIp));
+      const rateLimit = await dependencies.consumeRateLimit(
+        await sha256(clientIp),
+      );
       if (!rateLimit.allowed) {
         const retryAfter = Math.max(1, rateLimit.retryAfterSeconds || 1);
         return errorResponse(
@@ -247,7 +292,11 @@ export function createApplicationHandler(
       }
     } catch {
       dependencies.logServerError("application_rate_limit_failed", requestId);
-      return errorResponse(500, "INTERNAL_ERROR", "The application could not be submitted.");
+      return errorResponse(
+        500,
+        "INTERNAL_ERROR",
+        "The application could not be submitted.",
+      );
     }
 
     if (getString(form, "company_name") !== "") {
@@ -284,6 +333,8 @@ export function createApplicationHandler(
     const email = getString(form, "email");
     const rentalStartDate = getString(form, "rental_start_date");
     const rentalEndDate = getString(form, "rental_end_date");
+    const pickupTime = getString(form, "pickup_time");
+    const dropoffTime = getString(form, "dropoff_time");
     const intendedVehicleUse = getString(form, "intended_vehicle_use");
     const paymentMethod = getString(form, "payment_method");
     const additionalInformation = getString(form, "additional_information");
@@ -298,6 +349,8 @@ export function createApplicationHandler(
       ["state", state, "State is required."],
       ["postal_code", postalCode, "Postal code is required."],
       ["phone", phone, "Phone is required."],
+      ["pickup_time", pickupTime, "Pickup time is required."],
+      ["dropoff_time", dropoffTime, "Drop-off time is required."],
       ["payment_method", paymentMethod, "Payment method is required."],
     ];
     for (const [field, value, message] of requiredFields) {
@@ -305,7 +358,22 @@ export function createApplicationHandler(
     }
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      validationErrors.push({ field: "email", message: "A valid email is required." });
+      validationErrors.push({
+        field: "email",
+        message: "A valid email is required.",
+      });
+    }
+    if (pickupTime && !isValidTime(pickupTime)) {
+      validationErrors.push({
+        field: "pickup_time",
+        message: "Pickup time must use 24-hour HH:MM format.",
+      });
+    }
+    if (dropoffTime && !isValidTime(dropoffTime)) {
+      validationErrors.push({
+        field: "dropoff_time",
+        message: "Drop-off time must use 24-hour HH:MM format.",
+      });
     }
 
     const allowedVehicleUses = new Set([
@@ -369,7 +437,10 @@ export function createApplicationHandler(
     }
 
     if (!smsConsent) {
-      validationErrors.push({ field: "sms_consent", message: "SMS consent is required." });
+      validationErrors.push({
+        field: "sms_consent",
+        message: "SMS consent is required.",
+      });
     }
     if (validationErrors.length) {
       return errorResponse(
@@ -416,9 +487,16 @@ export function createApplicationHandler(
       );
       uploadedPaths.push(proofOfAddressPath);
     } catch {
-      dependencies.logServerError("application_document_upload_failed", requestId);
+      dependencies.logServerError(
+        "application_document_upload_failed",
+        requestId,
+      );
       await cleanupDocuments(dependencies, uploadedPaths, requestId);
-      return errorResponse(500, "UPLOAD_FAILED", "The documents could not be uploaded.");
+      return errorResponse(
+        500,
+        "UPLOAD_FAILED",
+        "The documents could not be uploaded.",
+      );
     }
 
     let application: ApplicationResult;
@@ -435,6 +513,8 @@ export function createApplicationHandler(
         email,
         rental_start_date: rentalStartDate,
         rental_end_date: rentalEndDate,
+        pickup_time: pickupTime,
+        dropoff_time: dropoffTime,
         rental_weeks: rentalWeeks,
         intended_vehicle_use: intendedVehicleUse,
         payment_method: paymentMethod,
@@ -444,12 +524,28 @@ export function createApplicationHandler(
         sms_consent: true,
       });
     } catch {
-      dependencies.logServerError("application_record_create_failed", requestId);
+      dependencies.logServerError(
+        "application_record_create_failed",
+        requestId,
+      );
       await cleanupDocuments(dependencies, uploadedPaths, requestId);
       return errorResponse(
         500,
         "APPLICATION_CREATE_FAILED",
         "The application could not be submitted.",
+      );
+    }
+
+    try {
+      await dependencies.sendApplicationReceivedEmail({
+        first_name: firstName,
+        application_number: application.application_number,
+        email,
+      });
+    } catch {
+      dependencies.logServerError(
+        "application_received_email_failed",
+        requestId,
       );
     }
 

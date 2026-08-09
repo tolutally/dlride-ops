@@ -4,9 +4,9 @@ info:
   title: DLride Ops API
   version: 1.0.0
   description: |
-    REST contract between the public DLride rental application website and the
-    internal DLride Ops application. This document defines behavior only; it
-    does not prescribe an implementation.
+    Private REST contract used by trusted DLride server-side services. Browser
+    clients do not call this API directly. This document defines behavior only;
+    it does not prescribe an implementation.
 
 tags:
   - name: Applications
@@ -27,15 +27,17 @@ paths:
       operationId: createApplication
       summary: Create a rental application
       description: |
-        Public endpoint that accepts application fields, a Cloudflare Turnstile
-        token, an empty honeypot, and both required documents as multipart form
-        data. The server applies a rolling limit of five attempts per source IP
+        Private endpoint called by the public website's trusted server-side
+        submission handler. It accepts application fields, a Cloudflare
+        Turnstile token, an empty honeypot, and both required documents as
+        multipart form data. The server applies a rolling limit of five attempts per source IP
         per hour, verifies Turnstile, validates all fields and detected file
         content, and only then uploads documents and creates the application.
         `application_number`, `status`, `rental_weeks`, document storage paths,
         and timestamps are assigned by the backend and are not accepted from the
         caller.
-      security: []
+      security:
+        - internalServiceAuth: []
       requestBody:
         required: true
         content:
@@ -136,11 +138,11 @@ paths:
     patch:
       tags: [Applications]
       operationId: updateApplication
-      summary: Update internal application processing fields
+      summary: Update non-workflow application annotations
       description: |
-        Updates only status, internal notes, decision reason, reviewer, and
-        review timestamp. Applicant, rental, consent, document, calculated, and
-        system-created fields are not writable through this endpoint.
+        Updates internal notes only. Status, decision reason, reviewer, and
+        review timestamp are controlled exclusively by workflow actions and
+        cannot be changed through this endpoint.
       security:
         - staffBearerAuth: []
       requestBody:
@@ -357,6 +359,10 @@ paths:
 
 components:
   securitySchemes:
+    internalServiceAuth:
+      type: http
+      scheme: bearer
+      description: Server-only credential shared through Railway service variables.
     staffBearerAuth:
       type: http
       scheme: bearer
@@ -469,7 +475,6 @@ components:
     ApplicationStatus:
       type: string
       enum:
-        - submitted
         - under_review
         - more_information_required
         - approved
@@ -495,6 +500,8 @@ components:
         - email
         - rental_start_date
         - rental_end_date
+        - pickup_time
+        - dropoff_time
         - intended_vehicle_use
         - payment_method
         - drivers_license
@@ -535,6 +542,16 @@ components:
           type: string
           format: date
           description: Must be at least 7 days after rental_start_date.
+        pickup_time:
+          type: string
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: '09:30'
+          description: Customer-requested local pickup time in 24-hour HH:MM format.
+        dropoff_time:
+          type: string
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: '17:00'
+          description: Customer-requested local drop-off time in 24-hour HH:MM format.
         intended_vehicle_use:
           $ref: '#/components/schemas/IntendedVehicleUse'
         payment_method:
@@ -575,18 +592,8 @@ components:
       additionalProperties: false
       minProperties: 1
       properties:
-        status:
-          $ref: '#/components/schemas/ApplicationStatus'
         internal_notes:
           type: [string, 'null']
-        decision_reason:
-          type: [string, 'null']
-        reviewed_by:
-          type: [string, 'null']
-          format: uuid
-        reviewed_at:
-          type: [string, 'null']
-          format: date-time
 
     ApplicantInformation:
       type: object
@@ -640,6 +647,8 @@ components:
       required:
         - rental_start_date
         - rental_end_date
+        - pickup_time
+        - dropoff_time
         - rental_weeks
         - intended_vehicle_use
         - payment_method
@@ -650,6 +659,14 @@ components:
         rental_end_date:
           type: string
           format: date
+        pickup_time:
+          type: string
+          format: time
+          description: Customer-requested local pickup time.
+        dropoff_time:
+          type: string
+          format: time
+          description: Customer-requested local drop-off time.
         rental_weeks:
           type: integer
           minimum: 1
@@ -721,6 +738,15 @@ components:
           const: true
         status:
           $ref: '#/components/schemas/ApplicationStatus'
+        assigned_car:
+          type: [string, 'null']
+        pickup_date:
+          type: [string, 'null']
+          format: date
+        pickup_location:
+          type: [string, 'null']
+        pickup_instructions:
+          type: [string, 'null']
         internal_notes:
           type: [string, 'null']
         decision_reason:
@@ -769,6 +795,15 @@ components:
           const: true
         status:
           $ref: '#/components/schemas/ApplicationStatus'
+        assigned_car:
+          type: [string, 'null']
+        pickup_date:
+          type: [string, 'null']
+          format: date
+        pickup_location:
+          type: [string, 'null']
+        pickup_instructions:
+          type: [string, 'null']
         internal_notes:
           type: [string, 'null']
         decision_reason:

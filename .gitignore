@@ -3,5 +3,9 @@
 !.env.example
 
 node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
 .DS_Store
 *.swp
