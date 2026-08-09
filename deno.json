@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "lib": [
+      "deno.window"
+    ],
+    "skipLibCheck": true,
+    "strict": true
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix"]
+    }
+  },
+  "tasks": {
+    "lint": "deno lint supabase/functions/applications",
+    "typecheck": "deno check supabase/functions/applications/index.ts supabase/functions/applications/handler.test.ts",
+    "test": "deno test supabase/functions/applications/handler.test.ts",
+    "build": "deno check --all supabase/functions/applications/index.ts"
+  }
+}

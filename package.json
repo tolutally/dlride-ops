@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "lint": "deno lint supabase/functions/applications",
+    "typecheck": "deno check supabase/functions/applications/index.ts supabase/functions/applications/handler.test.ts",
+    "test": "deno test supabase/functions/applications/handler.test.ts",
+    "build": "deno check --all supabase/functions/applications/index.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.2"
+  },
+  "devDependencies": {
+    "deno": "^2.9.5"
+  }
+}
