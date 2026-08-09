@@ -12,6 +12,17 @@ api/
 
 `openapi.yaml` is the authoritative OpenAPI 3.1 specification for the API.
 
+## Implementation status
+
+The production Railway service currently implements only:
+
+- `GET /health`
+- `POST /applications`
+
+The application management, customer, fleet, rental, and renewal operations in
+the OpenAPI contract are planned and are not live. See the repository root
+`README.md` for the production URL and request examples.
+
 ## Conventions
 
 - Request and response field names use `snake_case` to match the data contract.
