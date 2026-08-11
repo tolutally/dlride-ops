@@ -1,12 +1,15 @@
 "use client";
 
 import { Bell, MailCheck, X } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { markReplyNotificationRead } from "@/lib/notifications/actions";
 import { relativeReplyTime } from "@/lib/notifications/format";
 import {
   UNREAD_REPLIES_READ_EVENT,
+  type UnreadReplyNotification,
   type UnreadReplySnapshot,
 } from "@/lib/notifications/types";
 
@@ -28,6 +31,8 @@ export function UnreadReplyNotifications({ initialSnapshot }: {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [now, setNow] = useState(initialSnapshot.generatedAt);
   const [open, setOpen] = useState(false);
+  const [selectedReply, setSelectedReply] = useState<UnreadReplyNotification | null>(null);
+  const [readError, setReadError] = useState(false);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -124,6 +129,25 @@ export function UnreadReplyNotifications({ initialSnapshot }: {
     setOpen((current) => !current);
   }
 
+  async function viewReply(item: UnreadReplyNotification) {
+    setSelectedReply(item);
+    setReadError(false);
+    setOpen(false);
+
+    const result = await markReplyNotificationRead(item.id, item.applicationId);
+    if (!result.success) {
+      setReadError(true);
+      return;
+    }
+
+    setSnapshot((current) => ({
+      ...current,
+      total: Math.max(0, current.total - (current.items.some((entry) => entry.id === item.id) ? 1 : 0)),
+      items: current.items.filter((entry) => entry.id !== item.id),
+    }));
+    window.dispatchEvent(new Event(UNREAD_REPLIES_READ_EVENT));
+  }
+
   return (
     <div ref={rootRef} className={styles.root}>
       <button
@@ -172,7 +196,7 @@ export function UnreadReplyNotifications({ initialSnapshot }: {
               <ol className={styles.list} aria-label="Unread customer replies">
                 {snapshot.items.map((item) => (
                   <li key={item.id}>
-                    <Link className={styles.item} href={`/applications/${item.applicationId}#conversation`} onClick={() => setOpen(false)}>
+                    <button className={styles.item} type="button" onClick={() => void viewReply(item)}>
                       <span className={styles.unreadDot} aria-hidden="true" />
                       <span className={styles.itemBody}>
                         <span className={styles.itemHeading}>
@@ -182,7 +206,7 @@ export function UnreadReplyNotifications({ initialSnapshot }: {
                         <span className={styles.applicationNumber}>{item.applicationNumber}</span>
                         <span className={styles.preview}>{item.preview}</span>
                       </span>
-                    </Link>
+                    </button>
                   </li>
                 ))}
               </ol>
@@ -200,6 +224,42 @@ export function UnreadReplyNotifications({ initialSnapshot }: {
           </section>
         </>
       ) : null}
+
+      <Dialog
+        open={Boolean(selectedReply)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setSelectedReply(null);
+        }}
+        title={selectedReply ? `Reply from ${selectedReply.customerName}` : "Customer reply"}
+        description={selectedReply
+          ? `${selectedReply.applicationNumber} · ${relativeReplyTime(selectedReply.receivedAt, now)}`
+          : undefined}
+        bodyClassName={styles.messageDialogBody}
+        footer={selectedReply ? (
+          <>
+            <Button variant="ghost" onClick={() => setSelectedReply(null)}>Close</Button>
+            <ButtonLink
+              href={`/applications/${selectedReply.applicationId}#conversation`}
+              variant="primary"
+              onClick={() => setSelectedReply(null)}
+            >
+              Open application
+            </ButtonLink>
+          </>
+        ) : undefined}
+      >
+        {selectedReply ? (
+          <div className={styles.messageDialogContent}>
+            <p className={styles.messageSubject}>{selectedReply.applicationNumber}</p>
+            <div className={styles.messageText}>{selectedReply.bodyText || selectedReply.preview}</div>
+            {readError ? (
+              <p className={styles.messageReadError} role="status">
+                Message opened, but its unread status couldn&apos;t be updated. Please try again.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </Dialog>
     </div>
   );
 }

@@ -98,6 +98,7 @@ export async function fetchUnreadReplyNotifications(): Promise<UnreadReplySnapsh
         applicationId: application.id,
         applicationNumber: application.application_number || message.application_number || "Application",
         customerName: `${application.first_name} ${application.last_name}`.trim(),
+        bodyText: message.body_text,
         preview: notificationPreview(message.body_text, message.subject),
         receivedAt: message.received_at,
       }];
@@ -116,4 +117,3 @@ export async function fetchUnreadReplyNotifications(): Promise<UnreadReplySnapsh
     return { total: 0, items: [], generatedAt };
   }
 }
-

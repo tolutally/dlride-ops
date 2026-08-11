@@ -113,6 +113,11 @@
 }
 
 .item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-3);
@@ -121,6 +126,42 @@
   color: inherit;
   text-decoration: none;
   transition: background var(--transition-fast);
+}
+
+.messageDialogBody {
+  padding-top: var(--space-4);
+}
+
+.messageDialogContent {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.messageSubject {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: var(--text-metadata);
+  font-weight: 650;
+}
+
+.messageText {
+  max-height: min(52dvh, 24rem);
+  overflow: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-secondary);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.messageReadError {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--text-caption);
 }
 
 .item:hover {
@@ -281,6 +322,10 @@
     min-height: 5rem;
     padding: var(--space-3) var(--space-4);
   }
+
+  .messageText {
+    max-height: 48dvh;
+  }
 }
 
 @keyframes notificationOverlayIn {
@@ -297,4 +342,3 @@
     animation: none;
   }
 }
-

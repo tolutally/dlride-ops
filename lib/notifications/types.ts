@@ -3,6 +3,7 @@ export type UnreadReplyNotification = {
   applicationId: string;
   applicationNumber: string;
   customerName: string;
+  bodyText: string;
   preview: string;
   receivedAt: string;
 };
@@ -14,4 +15,3 @@ export type UnreadReplySnapshot = {
 };
 
 export const UNREAD_REPLIES_READ_EVENT = "dlride:unread-replies-read";
-
