@@ -115,7 +115,7 @@ const handler = createApplicationHandler({
 
 const port = Number(Deno.env.get("PORT") || "8000");
 
-Deno.serve({ hostname: "0.0.0.0", port }, (request) => {
+Deno.serve({ hostname: "::", port }, (request) => {
   if (request.method === "GET" && new URL(request.url).pathname === "/health") {
     return Response.json({ status: "ok" });
   }
