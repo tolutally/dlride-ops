@@ -3,13 +3,17 @@
 import { FileImage, FileText, LoaderCircle, Mail, MessageCircle, Paperclip, Send, X } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { Button } from "@/components/ui";
+import { Button, ButtonLink, Dialog } from "@/components/ui";
 import {
   loadEarlierMessages,
   markConversationRead,
   sendApplicationReply,
 } from "@/lib/applications/conversation-actions";
-import type { ApplicationConversation, ApplicationMessage } from "@/lib/applications/detail-types";
+import type {
+  ApplicationConversation,
+  ApplicationMessage,
+  MessageAttachment,
+} from "@/lib/applications/detail-types";
 import { UNREAD_REPLIES_READ_EVENT } from "@/lib/notifications/types";
 
 import styles from "./application-detail.module.css";
@@ -58,10 +62,10 @@ function senderLabel(message: ApplicationMessage, customerName: string) {
   return message.direction === "inbound" ? customerName : "DLride Rentals";
 }
 
-function MessageBlock({ message, customerName, applicationId }: {
+function MessageBlock({ message, customerName, onViewAttachment }: {
   message: ApplicationMessage;
   customerName: string;
-  applicationId: string;
+  onViewAttachment: (attachment: MessageAttachment) => void;
 }) {
   const body = splitQuotedHistory(message.body_text);
   return (
@@ -87,12 +91,11 @@ function MessageBlock({ message, customerName, applicationId }: {
       {message.attachments.length ? (
         <div className={styles.messageAttachments} aria-label="Attachments">
           {message.attachments.map((attachment) => (
-            <a
+            <button
               className={styles.messageAttachment}
-              href={`/applications/${applicationId}/conversation/attachments/${attachment.id}`}
               key={attachment.id}
-              target="_blank"
-              rel="noreferrer"
+              type="button"
+              onClick={() => onViewAttachment(attachment)}
             >
               {attachment.mime_type.startsWith("image/") ? <FileImage aria-hidden="true" /> : <FileText aria-hidden="true" />}
               <span>
@@ -100,7 +103,7 @@ function MessageBlock({ message, customerName, applicationId }: {
                 <small>{fileType(attachment.mime_type)} · {formatBytes(attachment.file_size)}</small>
               </span>
               <span className={styles.attachmentView}>View</span>
-            </a>
+            </button>
           ))}
         </div>
       ) : null}
@@ -133,6 +136,7 @@ export function ApplicationConversationPanel({
   const [fileError, setFileError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [hasUnread, setHasUnread] = useState(initial.hasUnread);
+  const [previewAttachment, setPreviewAttachment] = useState<MessageAttachment | null>(null);
   const [isSending, startSending] = useTransition();
   const [isLoadingEarlier, startLoadingEarlier] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -233,7 +237,12 @@ export function ApplicationConversationPanel({
       {messages.length ? (
         <ol className={styles.messageList} aria-label="Application messages">
           {messages.map((message) => (
-            <MessageBlock key={message.id} message={message} customerName={customerName} applicationId={applicationId} />
+            <MessageBlock
+              key={message.id}
+              message={message}
+              customerName={customerName}
+              onViewAttachment={setPreviewAttachment}
+            />
           ))}
         </ol>
       ) : (
@@ -243,6 +252,49 @@ export function ApplicationConversationPanel({
         </div>
       )}
       <div ref={newestRef} />
+
+      <Dialog
+        open={Boolean(previewAttachment)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setPreviewAttachment(null);
+        }}
+        title={previewAttachment?.filename ?? "Attachment preview"}
+        description={previewAttachment
+          ? `${fileType(previewAttachment.mime_type)} · ${formatBytes(previewAttachment.file_size)}`
+          : undefined}
+        size="wide"
+        bodyClassName={styles.attachmentPreviewBody}
+        footer={previewAttachment ? (
+          <>
+            <Button variant="ghost" onClick={() => setPreviewAttachment(null)}>Close</Button>
+            <ButtonLink
+              href={`/applications/${applicationId}/conversation/attachments/${previewAttachment.id}?download=1`}
+              variant="secondary"
+              download
+            >
+              Download
+            </ButtonLink>
+          </>
+        ) : undefined}
+      >
+        {previewAttachment ? (
+          <div className={styles.attachmentPreview} data-attachment-preview="true">
+            {previewAttachment.mime_type === "application/pdf" ? (
+              <iframe
+                src={`/applications/${applicationId}/conversation/attachments/${previewAttachment.id}`}
+                title={`Preview ${previewAttachment.filename}`}
+              />
+            ) : (
+              // This authenticated route redirects to a short-lived private Storage URL.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/applications/${applicationId}/conversation/attachments/${previewAttachment.id}`}
+                alt={previewAttachment.filename}
+              />
+            )}
+          </div>
+        ) : null}
+      </Dialog>
 
       <div className={styles.replyComposer}>
         <label className="sr-only" htmlFor={`reply-${applicationId}`}>Reply to {customerFirstName}</label>
@@ -334,6 +386,7 @@ export function ApplicationConversationDrawer({
     closeButtonRef.current?.focus();
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        if (document.querySelector("[data-attachment-preview='true']")) return;
         setOpen(false);
         if (window.location.hash === "#conversation") {
           window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);

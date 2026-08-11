@@ -426,8 +426,9 @@
 .quotedHistory summary { width: fit-content; min-height: 2.75rem; padding-block: 0.75rem; color: var(--color-text-secondary); cursor: pointer; }
 .quotedHistory p { margin: var(--space-1) 0 0; padding-left: var(--space-3); border-left: 2px solid var(--color-border); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .messageAttachments { display: grid; gap: var(--space-2); margin-top: var(--space-3); }
-.messageAttachment { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); min-height: 3.25rem; padding: 0.5rem 0.625rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); background: rgba(255,255,255,.72); color: inherit; text-decoration: none; }
+.messageAttachment { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); width: 100%; min-height: 3.25rem; padding: 0.5rem 0.625rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); background: rgba(255,255,255,.72); color: inherit; text-align: left; cursor: pointer; }
 .messageAttachment:hover { border-color: var(--color-border-strong); }
+.messageAttachment:focus-visible { border-color: var(--color-primary); outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .messageAttachment > svg { width: 1.1rem; height: 1.1rem; color: var(--color-primary); }
 .messageAttachment span { min-width: 0; }
 .messageAttachment strong,
@@ -435,6 +436,10 @@
 .messageAttachment strong { font-size: var(--text-secondary); font-weight: 620; }
 .messageAttachment small { margin-top: 0.1rem; color: var(--color-text-muted); font-size: 0.6875rem; }
 .attachmentView { color: var(--color-primary); font-size: var(--text-caption); font-weight: 620; }
+.attachmentPreviewBody { padding: var(--space-4); }
+.attachmentPreview { display: grid; width: 100%; height: min(72dvh, 48rem); overflow: hidden; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); background: var(--color-canvas-subtle); place-items: center; }
+.attachmentPreview iframe { width: 100%; height: 100%; border: 0; background: white; }
+.attachmentPreview img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
 .conversationEmpty { padding: var(--space-8) var(--space-4); text-align: center; }
 .conversationEmpty p { margin: 0; font-weight: 620; }
 .conversationEmpty span { display: block; margin-top: var(--space-1); color: var(--color-text-muted); font-size: var(--text-caption); }
@@ -559,6 +564,8 @@
   .conversationLauncher { bottom: max(var(--space-4), env(safe-area-inset-bottom)); left: max(var(--space-4), env(safe-area-inset-left)); width: 3.5rem; height: 3.5rem; }
   .conversationDrawer { width: 100%; border-right: 0; }
   .conversationDrawer .conversationSurface { padding: var(--space-4) var(--space-4) 0; }
+  .attachmentPreviewBody { padding: var(--space-3); }
+  .attachmentPreview { height: min(66dvh, 42rem); }
   .drawerTopBar { min-height: 3.5rem; padding-left: calc(var(--space-4) + env(safe-area-inset-left)); padding-right: calc(var(--space-2) + env(safe-area-inset-right)); }
 }
 
