@@ -13,6 +13,10 @@ export function isProtectedStaffPath(pathname: string) {
   );
 }
 
+export function isPublicApplicationSubmission(pathname: string, method: string) {
+  return pathname === "/applications" && method.toUpperCase() === "POST";
+}
+
 export function authRedirectFor(pathname: string, authenticated: boolean) {
   if (!authenticated && isProtectedStaffPath(pathname)) return "/login";
   if (authenticated && pathname === "/login") return "/applications";

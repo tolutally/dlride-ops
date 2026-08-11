@@ -1,4 +1,8 @@
-import { authRedirectFor, isProtectedStaffPath } from "./routes.ts";
+import {
+  authRedirectFor,
+  isProtectedStaffPath,
+  isPublicApplicationSubmission,
+} from "./routes.ts";
 
 function assertEquals(actual: unknown, expected: unknown) {
   if (actual !== expected) {
@@ -29,4 +33,12 @@ Deno.test("login redirects authenticated staff and leaves public paths alone", (
   assertEquals(authRedirectFor("/login", false), null);
   assertEquals(authRedirectFor("/", false), null);
   assertEquals(authRedirectFor("/apply", false), null);
+});
+
+Deno.test("only the exact public application POST bypasses the staff page guard", () => {
+  assertEquals(isPublicApplicationSubmission("/applications", "POST"), true);
+  assertEquals(isPublicApplicationSubmission("/applications", "post"), true);
+  assertEquals(isPublicApplicationSubmission("/applications", "GET"), false);
+  assertEquals(isPublicApplicationSubmission("/applications/example-id", "POST"), false);
+  assertEquals(isPublicApplicationSubmission("/customers", "POST"), false);
 });
