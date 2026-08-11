@@ -8,7 +8,7 @@ import { getStaff } from "@/lib/auth/staff";
 import styles from "@/components/auth/auth.module.css";
 
 export const metadata: Metadata = {
-  title: "Sign In — DLride Ops",
+  title: "Sign In",
   description: "Secure staff access to DLride operations.",
 };
 

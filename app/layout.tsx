@@ -4,11 +4,14 @@ import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DLride Ops — Design System",
-  description: "Reusable interface foundations for DLride operations software.",
+  title: {
+    default: "DLride Ops",
+    template: "%s — DLride Ops",
+  },
+  description: "Internal operations console for managing DLride rental applications and customer communications.",
   appleWebApp: {
     capable: true,
-    title: "DLride",
+    title: "DLride Ops",
     statusBarStyle: "default",
   },
 };

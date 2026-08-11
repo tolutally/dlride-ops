@@ -10,7 +10,7 @@ import { parseQueueFilters, type QueueSearchParams } from "@/lib/applications/qu
 import styles from "@/components/applications/applications-queue.module.css";
 
 export const metadata: Metadata = {
-  title: "Applications — DLride Ops",
+  title: "Applications",
   description: "Review incoming DLride rental applications.",
 };
 
