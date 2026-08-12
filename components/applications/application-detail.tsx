@@ -158,7 +158,7 @@ export function ApplicationDetail({ application, activity, conversation }: {
                   {vehicleUseLabel(application.intended_vehicle_use)}
                 </DetailField>
                 <DetailField label="Preferred Payment Method">
-                  {PAYMENT_METHOD_LABELS[application.payment_method]}
+                  {PAYMENT_METHOD_LABELS[application.payment_method] ?? application.payment_method}
                 </DetailField>
               </dl>
             </section>

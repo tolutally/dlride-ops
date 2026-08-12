@@ -183,13 +183,15 @@ function normalizeVehicleUse(input: string): string {
   const trimmed = input.trim();
   const normalized = trimmed.toLowerCase().replace(/[\s-]+/g, "_");
   if (
+    normalized === "essential_weekly_transportation" ||
+    normalized === "essential_weekly_transport" ||
     normalized === "essential_weekly_use" ||
     normalized === "essential_weekly" ||
     normalized === "essential_use" ||
     normalized === "essential" ||
     normalized === "essential_weekly_rental"
   ) {
-    return "essential_weekly_use";
+    return "essential_weekly_transportation";
   }
   if (normalized === "gig_work" || normalized === "gig" || normalized === "gigwork") {
     return "gig_work";
@@ -446,6 +448,7 @@ export function createApplicationHandler(
 
     const allowedVehicleUses = new Set([
       "gig_work",
+      "essential_weekly_transportation",
       "essential_weekly_use",
       "personal_use",
       "travel_nursing",

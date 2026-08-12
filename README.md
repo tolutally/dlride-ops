@@ -52,7 +52,7 @@ server-side services may hold this credential; browsers must never receive it.
 | `rental_end_date` | Date | Yes | At least 7 days after start |
 | `pickup_time` | Time | Yes | Local time in 24-hour `HH:MM` format |
 | `dropoff_time` | Time | Yes | Local time in 24-hour `HH:MM` format |
-| `intended_vehicle_use` | Text | Yes | `gig_work`, `road_trips`, `personal_use`, `travel_nursing`, or `other` |
+| `intended_vehicle_use` | Text | Yes | `gig_work`, `essential_weekly_transportation`, `essential_weekly_use`, `road_trips`, `personal_use`, `travel_nursing`, or `other` |
 | `payment_method` | Text | Yes | `cash`, `e-transfer`, or `card` |
 | `additional_information` | Text | No | |
 | `sms_consent` | Text | Yes | Must be `true` |

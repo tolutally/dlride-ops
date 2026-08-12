@@ -467,6 +467,7 @@ components:
       type: string
       enum:
         - gig_work
+        - essential_weekly_transportation
         - essential_weekly_use
         - personal_use
         - travel_nursing

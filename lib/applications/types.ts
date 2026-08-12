@@ -2,6 +2,7 @@ import type { ApplicationStatus } from "@/lib/design-system/status";
 
 export const VEHICLE_USES = [
   "gig_work",
+  "essential_weekly_transportation",
   "essential_weekly_use",
   "personal_use",
   "travel_nursing",
@@ -13,6 +14,7 @@ export type VehicleUse = (typeof VEHICLE_USES)[number];
 
 export const VEHICLE_USE_LABELS: Record<VehicleUse, string> = {
   gig_work: "Gig Work",
+  essential_weekly_transportation: "Essential Weekly Transportation",
   essential_weekly_use: "Essential Weekly Use",
   personal_use: "Personal Use",
   travel_nursing: "Travel Nursing",

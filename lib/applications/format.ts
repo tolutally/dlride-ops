@@ -49,6 +49,6 @@ export function formatRentalWeeks(weeks: number) {
   return `${weeks} ${weeks === 1 ? "week" : "weeks"}`;
 }
 
-export function vehicleUseLabel(value: VehicleUse) {
-  return VEHICLE_USE_LABELS[value];
+export function vehicleUseLabel(value: VehicleUse | string) {
+  return VEHICLE_USE_LABELS[value as VehicleUse] ?? value.replace(/_/g, " ");
 }
