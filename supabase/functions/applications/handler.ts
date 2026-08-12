@@ -149,6 +149,70 @@ function isValidTime(value: string) {
   return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
+function normalizePaymentMethod(input: string): string {
+  const trimmed = input.trim();
+  const normalized = trimmed.toLowerCase().replace(/[\s_-]+/g, "_");
+  if (
+    normalized === "cash" ||
+    normalized === "cash_deposit" ||
+    normalized === "cashdeposit"
+  ) {
+    return "cash";
+  }
+  if (
+    normalized === "e_transfer" ||
+    normalized === "etransfer" ||
+    normalized === "e-transfer"
+  ) {
+    return "e-transfer";
+  }
+  if (
+    normalized === "card" ||
+    normalized === "credit_card" ||
+    normalized === "debit_card" ||
+    normalized === "credit_debit" ||
+    normalized === "credit_debit_card" ||
+    normalized === "card_payment"
+  ) {
+    return "card";
+  }
+  return trimmed;
+}
+
+function normalizeVehicleUse(input: string): string {
+  const trimmed = input.trim();
+  const normalized = trimmed.toLowerCase().replace(/[\s-]+/g, "_");
+  if (
+    normalized === "essential_weekly_use" ||
+    normalized === "essential_weekly" ||
+    normalized === "essential_use" ||
+    normalized === "essential" ||
+    normalized === "essential_weekly_rental"
+  ) {
+    return "essential_weekly_use";
+  }
+  if (normalized === "gig_work" || normalized === "gig" || normalized === "gigwork") {
+    return "gig_work";
+  }
+  if (normalized === "personal_use" || normalized === "personal" || normalized === "personaluse") {
+    return "personal_use";
+  }
+  if (
+    normalized === "travel_nursing" ||
+    normalized === "travel_nurse" ||
+    normalized === "travelnursing"
+  ) {
+    return "travel_nursing";
+  }
+  if (normalized === "road_trips" || normalized === "road_trip" || normalized === "roadtrips") {
+    return "road_trips";
+  }
+  if (normalized === "other") {
+    return "other";
+  }
+  return trimmed;
+}
+
 function utcDay(date: Date) {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
@@ -335,8 +399,12 @@ export function createApplicationHandler(
     const rentalEndDate = getString(form, "rental_end_date");
     const pickupTime = getString(form, "pickup_time");
     const dropoffTime = getString(form, "dropoff_time");
-    const intendedVehicleUse = getString(form, "intended_vehicle_use");
-    const paymentMethod = getString(form, "payment_method");
+    const intendedVehicleUse = normalizeVehicleUse(
+      getString(form, "intended_vehicle_use"),
+    );
+    const paymentMethod = normalizePaymentMethod(
+      getString(form, "payment_method"),
+    );
     const additionalInformation = getString(form, "additional_information");
     const smsConsent = getString(form, "sms_consent") === "true";
 
@@ -378,9 +446,10 @@ export function createApplicationHandler(
 
     const allowedVehicleUses = new Set([
       "gig_work",
-      "road_trips",
+      "essential_weekly_use",
       "personal_use",
       "travel_nursing",
+      "road_trips",
       "other",
     ]);
     if (!allowedVehicleUses.has(intendedVehicleUse)) {

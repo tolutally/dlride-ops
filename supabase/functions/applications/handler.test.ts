@@ -264,6 +264,29 @@ Deno.test("payment method outside the website values is rejected", async () => {
   assertEquals(state.uploads, []);
 });
 
+Deno.test("normalizes payment method variations such as cash_deposit and e_transfer", async () => {
+  const form = createForm();
+  form.set("payment_method", "cash_deposit");
+  const { handler, state } = createHarness();
+  const response = await handler(createRequest(form));
+
+  assertEquals(response.status, 201);
+  assertEquals(state.inserted?.payment_method, "cash");
+});
+
+Deno.test("accepts essential_weekly_use and normalizes essential weekly use", async () => {
+  const form = createForm();
+  form.set("intended_vehicle_use", "essential weekly use");
+  const { handler, state } = createHarness();
+  const response = await handler(createRequest(form));
+
+  assertEquals(response.status, 201);
+  assertEquals(
+    state.inserted?.intended_vehicle_use,
+    "essential_weekly_use",
+  );
+});
+
 Deno.test("rental end before start is rejected", async () => {
   const form = createForm();
   form.set("rental_end_date", "2026-01-31");
