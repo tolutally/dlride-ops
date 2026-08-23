@@ -11,6 +11,8 @@ info:
 tags:
   - name: Applications
     description: Rental application submission and internal processing.
+  - name: Leads
+    description: Prospect contact capture from external lead sources (e.g. the Botpress chat widget).
   - name: Customers
     description: Reserved customer endpoints. Not implemented in version 1.0.0.
   - name: Fleet
@@ -203,6 +205,44 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /leads:
+    post:
+      tags: [Leads]
+      operationId: createLead
+      summary: Capture a prospect lead
+      description: |
+        Private endpoint called by trusted lead-source integrations (e.g. the
+        Botpress HTTP tool backing the chat widget). Accepts a JSON body with
+        prospect contact details. `id`, `status`, and `created_at` are assigned
+        by the backend and are not accepted from the caller. This endpoint uses
+        its own bearer credential, distinct from `/applications`, so an
+        integration's access can be revoked independently.
+      security:
+        - leadsServiceAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeadRequest'
+      responses:
+        '201':
+          description: Lead recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateLeadSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '415':
+          $ref: '#/components/responses/LeadUnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/LeadValidationFailed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /customers:
     get:
       tags: [Customers]
@@ -363,6 +403,13 @@ components:
       type: http
       scheme: bearer
       description: Server-only credential shared through Railway service variables.
+    leadsServiceAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Server-only credential shared with the lead-capture integration. A
+        distinct Railway service variable from internalServiceAuth so it can
+        be rotated or revoked without affecting application submissions.
     staffBearerAuth:
       type: http
       scheme: bearer
@@ -487,6 +534,65 @@ components:
       type: string
       enum: [cash, e-transfer, card]
       description: Exact value submitted by the public website payment-method control.
+
+    LeadStatus:
+      type: string
+      enum: [new, contacted, qualified, converted, disqualified]
+
+    CreateLeadRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - first_name
+        - email
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        last_name:
+          type: string
+          maxLength: 200
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          maxLength: 200
+        message:
+          type: string
+          maxLength: 5000
+        source:
+          type: string
+          maxLength: 200
+          default: botpress
+          description: Identifies the originating integration.
+
+    CreateLeadResult:
+      type: object
+      additionalProperties: false
+      required: [id, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/LeadStatus'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+
+    CreateLeadSuccessResponse:
+      type: object
+      additionalProperties: false
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/CreateLeadResult'
 
     CreateApplicationRequest:
       type: object
@@ -1225,3 +1331,41 @@ components:
             error:
               code: INTERNAL_ERROR
               message: An unexpected error occurred.
+
+    LeadUnsupportedMediaType:
+      description: The request body is not application/json.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: UNSUPPORTED_MEDIA_TYPE
+              message: The request must use a JSON body.
+
+    LeadValidationFailed:
+      description: The lead failed server-side validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            firstNameRequired:
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: One or more fields are invalid.
+                  details:
+                    - field: first_name
+                      message: First name is required.
+            invalidEmail:
+              value:
+                success: false
+                error:
+                  code: VALIDATION_ERROR
+                  message: One or more fields are invalid.
+                  details:
+                    - field: email
+                      message: A valid email is required.

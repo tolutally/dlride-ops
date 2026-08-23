@@ -7,6 +7,7 @@ import { signOut } from "@/lib/auth/actions";
 import type { UnreadReplySnapshot } from "@/lib/notifications/types";
 
 import styles from "./app-shell.module.css";
+import { PrimaryNav } from "./primary-nav";
 
 export function AppShell({ children, staffEmail, initialNotifications }: {
   children: React.ReactNode;
@@ -19,6 +20,8 @@ export function AppShell({ children, staffEmail, initialNotifications }: {
         <Link className={styles.brand} href="/applications" aria-label="DLride Ops applications">
           <BrandLogo className={styles.brandLogo} priority />
         </Link>
+
+        <PrimaryNav />
 
         <div className={styles.account}>
           <UnreadReplyNotifications initialSnapshot={initialNotifications} />

@@ -10,6 +10,11 @@ import {
   type ApplicationResult,
   createApplicationHandler,
 } from "./handler.ts";
+import {
+  createLeadHandler,
+  type LeadInsert,
+  type LeadResult,
+} from "./leads-handler.ts";
 import { verifyTurnstileToken } from "./turnstile.ts";
 
 const APPLICATION_DOCUMENTS_BUCKET = "application-documents";
@@ -25,6 +30,7 @@ const supabaseSecretKey = Deno.env.get("SUPABASE_SECRET_KEY") ||
   requiredEnvironment("SUPABASE_SERVICE_ROLE_KEY");
 const turnstileSecret = requiredEnvironment("TURNSTILE_SECRET");
 const internalApiToken = requiredEnvironment("INTERNAL_API_TOKEN");
+const leadsApiToken = requiredEnvironment("LEADS_API_TOKEN");
 
 function mailtrapConfiguration(): MailtrapConfiguration {
   return {
@@ -113,12 +119,36 @@ const handler = createApplicationHandler({
   },
 });
 
+const leadsHandler = createLeadHandler({
+  internalApiToken: leadsApiToken,
+  generateId: () => crypto.randomUUID(),
+
+  async createLead(input: LeadInsert) {
+    const { data, error } = await supabase
+      .from("leads")
+      .insert(input)
+      .select("id,status,created_at")
+      .single();
+
+    if (error || !data) throw new Error("Lead insert failed");
+    return data as LeadResult;
+  },
+
+  logServerError(event, requestId) {
+    console.error(JSON.stringify({ event, request_id: requestId }));
+  },
+});
+
 const port = Number(Deno.env.get("PORT") || "8000");
 
 Deno.serve({ hostname: "::", port }, (request) => {
-  if (request.method === "GET" && new URL(request.url).pathname === "/health") {
+  const path = new URL(request.url).pathname;
+
+  if (request.method === "GET" && path === "/health") {
     return Response.json({ status: "ok" });
   }
+
+  if (path === "/leads") return leadsHandler(request);
 
   return handler(request);
 });

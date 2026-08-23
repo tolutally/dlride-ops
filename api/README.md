@@ -18,6 +18,7 @@ The production Railway service currently implements only:
 
 - `GET /health`
 - `POST /applications`
+- `POST /leads`
 
 The application management, customer, fleet, rental, and renewal operations in
 the OpenAPI contract are planned and are not live. See the repository root
@@ -50,6 +51,14 @@ the OpenAPI contract are planned and are not live. See the repository root
   permanent public URLs are not part of the response contract.
 - Customer, fleet, rental, and renewal operations are reserved placeholders and
   return `501 Not Implemented` until their resource contracts are finalized.
+- `POST /leads` is private and requires its own server-only
+  `Authorization: Bearer <LEADS_API_TOKEN>` credential, distinct from
+  `INTERNAL_API_TOKEN`, so a lead-source integration (e.g. Botpress) can be
+  revoked without affecting application submissions. It accepts a JSON body,
+  not multipart form data.
+- `POST /leads` requires `first_name` and `email`; `last_name`, `phone`,
+  `message`, and `source` are optional. `source` defaults to `botpress` when
+  omitted.
 
 ## HTTP status codes
 
