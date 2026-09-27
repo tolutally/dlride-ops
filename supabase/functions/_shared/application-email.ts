@@ -59,6 +59,8 @@ export type MailtrapTemplateEmail = {
 export type MailtrapTextEmail = {
   toEmail: string;
   toName: string;
+  ccEmail?: string;
+  ccName?: string;
   subject: string;
   text: string;
 };
@@ -273,6 +275,14 @@ export async function sendMailtrapTextEmail(
           }
         : {}),
       to: [{ email: email.toEmail, name: email.toName }],
+      ...(email.ccEmail
+        ? {
+            cc: [{
+              email: email.ccEmail,
+              ...(email.ccName ? { name: email.ccName } : {}),
+            }],
+          }
+        : {}),
       subject: email.subject,
       text: email.text,
       category: "application-notification",

@@ -122,6 +122,8 @@ const handler = createApplicationHandler({
     await sendMailtrapTextEmail({
       toEmail: recipient,
       toName: "DLride Rentals",
+      ccEmail: requiredEnvironment("MAILTRAP_STAFF_CC_EMAIL"),
+      ccName: "DLride",
       subject: `New rental application ${application.application_number}`,
       text: [
         `A new rental application was submitted by ${applicantName}.`,

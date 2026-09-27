@@ -171,6 +171,8 @@ Deno.test("Mailtrap text sender builds a staff notification", async () => {
   await sendMailtrapTextEmail({
     toEmail: "ops@example.test",
     toName: "DLride Rentals",
+    ccEmail: "hello@example.test",
+    ccName: "DLride",
     subject: "New rental application DLR-000124",
     text: "Review the application in DLride Ops.",
   }, configuration, (_input, init) => {
@@ -183,6 +185,7 @@ Deno.test("Mailtrap text sender builds a staff notification", async () => {
     from: { email: "sender@example.test", name: "Test Sender" },
     reply_to: { email: "replies@example.test", name: "Test Replies" },
     to: [{ email: "ops@example.test", name: "DLride Rentals" }],
+    cc: [{ email: "hello@example.test", name: "DLride" }],
     subject: "New rental application DLR-000124",
     text: "Review the application in DLride Ops.",
     category: "application-notification",
