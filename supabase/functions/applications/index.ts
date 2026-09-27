@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.2";
 import {
   buildApplicationReceivedEmail,
   type MailtrapConfiguration,
+  sendMailtrapTextEmail,
   sendMailtrapTemplateEmail,
 } from "../_shared/application-email.ts";
 import {
@@ -112,6 +113,23 @@ const handler = createApplicationHandler({
       buildApplicationReceivedEmail(application, configuration.templates),
       configuration,
     );
+  },
+
+  async sendStaffApplicationNotification(application) {
+    const configuration = mailtrapConfiguration();
+    const recipient = requiredEnvironment("MAILTRAP_TO_EMAIL");
+    const applicantName = `${application.first_name} ${application.last_name}`;
+    await sendMailtrapTextEmail({
+      toEmail: recipient,
+      toName: "DLride Rentals",
+      subject: `New rental application ${application.application_number}`,
+      text: [
+        `A new rental application was submitted by ${applicantName}.`,
+        `Application: ${application.application_number}`,
+        `Applicant email: ${application.email}`,
+        `Review: https://ops.dlride.com/applications/${application.id}`,
+      ].join("\n"),
+    }, configuration);
   },
 
   logServerError(event, requestId) {

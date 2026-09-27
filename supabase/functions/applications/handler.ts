@@ -64,6 +64,13 @@ export type ApplicationSubmissionDependencies = {
     application_number: string;
     email: string;
   }) => Promise<void>;
+  sendStaffApplicationNotification: (application: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    application_number: string;
+    email: string;
+  }) => Promise<void>;
   logServerError: (event: string, requestId: string) => void;
 };
 
@@ -617,6 +624,21 @@ export function createApplicationHandler(
     } catch {
       dependencies.logServerError(
         "application_received_email_failed",
+        requestId,
+      );
+    }
+
+    try {
+      await dependencies.sendStaffApplicationNotification({
+        id: application.id,
+        first_name: firstName,
+        last_name: lastName,
+        application_number: application.application_number,
+        email,
+      });
+    } catch {
+      dependencies.logServerError(
+        "staff_application_notification_failed",
         requestId,
       );
     }

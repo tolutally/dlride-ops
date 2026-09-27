@@ -56,6 +56,13 @@ export type MailtrapTemplateEmail = {
   templateVariables: MailtrapTemplateVariables;
 };
 
+export type MailtrapTextEmail = {
+  toEmail: string;
+  toName: string;
+  subject: string;
+  text: string;
+};
+
 type Fetcher = (
   input: string | URL | Request,
   init?: RequestInit,
@@ -235,6 +242,40 @@ export async function sendMailtrapTemplateEmail(
       to: [{ email: email.toEmail, name: email.toName }],
       template_uuid: email.templateUuid,
       template_variables: email.templateVariables,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Mailtrap request failed with status ${response.status}`);
+  }
+}
+
+export async function sendMailtrapTextEmail(
+  email: MailtrapTextEmail,
+  configuration: MailtrapConfiguration,
+  fetcher: Fetcher = fetch,
+) {
+  const config = validateMailtrapConfiguration(configuration);
+  const response = await fetcher("https://send.api.mailtrap.io/api/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: { email: config.fromEmail, name: config.fromName },
+      ...(config.replyToEmail
+        ? {
+            reply_to: {
+              email: config.replyToEmail,
+              ...(config.replyToName ? { name: config.replyToName } : {}),
+            },
+          }
+        : {}),
+      to: [{ email: email.toEmail, name: email.toName }],
+      subject: email.subject,
+      text: email.text,
+      category: "application-notification",
     }),
   });
 

@@ -2,6 +2,7 @@ import {
   buildApplicationReceivedEmail,
   buildWorkflowEmail,
   sendMailtrapTemplateEmail,
+  sendMailtrapTextEmail,
   type ApplicationEmailTemplates,
   type MailtrapConfiguration,
 } from "./application-email.ts";
@@ -163,6 +164,29 @@ Deno.test("Mailtrap sender uses the hosted template API without inline content",
   assertEquals("subject" in body, false);
   assertEquals("html" in body, false);
   assertEquals("text" in body, false);
+});
+
+Deno.test("Mailtrap text sender builds a staff notification", async () => {
+  let request: RequestInit | undefined;
+  await sendMailtrapTextEmail({
+    toEmail: "ops@example.test",
+    toName: "DLride Rentals",
+    subject: "New rental application DLR-000124",
+    text: "Review the application in DLride Ops.",
+  }, configuration, (_input, init) => {
+    request = init;
+    return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }));
+  });
+
+  const body = JSON.parse(String(request?.body)) as Record<string, unknown>;
+  assertEquals(body, {
+    from: { email: "sender@example.test", name: "Test Sender" },
+    reply_to: { email: "replies@example.test", name: "Test Replies" },
+    to: [{ email: "ops@example.test", name: "DLride Rentals" }],
+    subject: "New rental application DLR-000124",
+    text: "Review the application in DLride Ops.",
+    category: "application-notification",
+  });
 });
 
 Deno.test("Mailtrap sender fails clearly when the From email is missing", async () => {

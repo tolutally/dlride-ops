@@ -79,6 +79,13 @@ type TestState = {
     application_number: string;
     email: string;
   }>;
+  staffNotifications: Array<{
+    id: string;
+    first_name: string;
+    last_name: string;
+    application_number: string;
+    email: string;
+  }>;
   verifyCalls: number;
   errors: string[];
 };
@@ -91,6 +98,7 @@ function createHarness(
     removed: [],
     inserted: null,
     receivedEmails: [],
+    staffNotifications: [],
     verifyCalls: 0,
     errors: [],
   };
@@ -125,6 +133,10 @@ function createHarness(
     },
     sendApplicationReceivedEmail: (application) => {
       state.receivedEmails.push(application);
+      return Promise.resolve();
+    },
+    sendStaffApplicationNotification: (application) => {
+      state.staffNotifications.push(application);
       return Promise.resolve();
     },
     logServerError: (event) => {
@@ -196,6 +208,13 @@ Deno.test("valid application uploads documents and creates a complete record", a
     application_number: "DLR-000001",
     email: "taylor@example.com",
   }]);
+  assertEquals(state.staffNotifications, [{
+    id: APPLICATION_ID,
+    first_name: "Taylor",
+    last_name: "Rider",
+    application_number: "DLR-000001",
+    email: "taylor@example.com",
+  }]);
 });
 
 Deno.test("application creation succeeds when the received email fails", async () => {
@@ -210,6 +229,20 @@ Deno.test("application creation succeeds when the received email fails", async (
   assertEquals(response.status, 201);
   assertEquals(body.data?.application_number, "DLR-000001");
   assertEquals(state.errors, ["application_received_email_failed"]);
+});
+
+Deno.test("application creation succeeds when the staff notification fails", async () => {
+  const { handler, state } = createHarness({
+    sendStaffApplicationNotification: () =>
+      Promise.reject(new Error("simulated failure")),
+  });
+
+  const response = await handler(createRequest(createForm()));
+  const body = await responseBody(response);
+
+  assertEquals(response.status, 201);
+  assertEquals(body.data?.application_number, "DLR-000001");
+  assertEquals(state.errors, ["staff_application_notification_failed"]);
 });
 
 Deno.test("missing required field is rejected", async () => {
